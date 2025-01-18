@@ -58,7 +58,7 @@ const ResultsPage = ({ gameData, username }) => {
 
   const fetchLeaderboard = async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/leaderboard');
+      const response = await fetch('https://dft-experiment-backend.onrender.com/api/leaderboard');
       const data = await response.json();
       setLeaderboard(data);
     } catch (error) {
