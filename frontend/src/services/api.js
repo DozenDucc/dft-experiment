@@ -1,4 +1,6 @@
-const BASE_URL = 'http://localhost:5001/api';
+const BASE_URL = process.env.NODE_ENV === 'production'
+  ? 'https://your-render-service-name.onrender.com/api'
+  : 'http://localhost:5001/api';
 
 export const saveGameData = async (gameData) => {
   try {

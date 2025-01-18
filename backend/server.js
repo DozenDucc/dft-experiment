@@ -5,8 +5,14 @@ require('dotenv').config();
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// Updated CORS configuration for production
+const corsOptions = {
+  origin: ['https://yourusername.github.io', 'http://localhost:5173'],
+  methods: ['GET', 'POST'],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // MongoDB connection

@@ -4,6 +4,7 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
+  base: '/dft-experiment/', // Add this line - should match your repo name
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -12,7 +13,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: process.env.NODE_ENV === 'production' 
+          ? 'https://your-render-service-name.onrender.com'
+          : 'http://localhost:5001',
         changeOrigin: true,
       },
     },
