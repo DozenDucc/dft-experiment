@@ -14,7 +14,7 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: process.env.NODE_ENV === 'production' 
-          ? 'https://your-render-service-name.onrender.com'
+          ? 'https://dft-experiment-backend.onrender.com'
           : 'http://localhost:5001',
         changeOrigin: true,
       },

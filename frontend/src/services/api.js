@@ -1,5 +1,5 @@
 const BASE_URL = process.env.NODE_ENV === 'production'
-  ? 'https://your-render-service-name.onrender.com/api'
+  ? 'https://dft-experiment-backend.onrender.com/api'
   : 'http://localhost:5001/api';
 
 export const saveGameData = async (gameData) => {
