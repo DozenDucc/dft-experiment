@@ -2,16 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { saveGameData } from '../services/api';
-import { GAME_CONFIG } from '../config/gameConfig'; // Add this import
 
 const ResultsPage = ({ gameData, username }) => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [visualizationData, setVisualizationData] = useState([]);
   const [totalReward, setTotalReward] = useState(0);
-
-  // Remove the local probability constants
-  // Instead use GAME_CONFIG.REWARD_PROBS[0] for LEFT_PROB
-  // and GAME_CONFIG.REWARD_PROBS[1] for RIGHT_PROB
 
   useEffect(() => {
     const processData = () => {
@@ -20,13 +15,47 @@ const ResultsPage = ({ gameData, username }) => {
       let rewardSum = 0;
       const dataPoints = [];
 
+      // Calculate income ratio line segments
+      const calculateIncomeRatio = (x, trial) => {
+        const trialData = gameData[trial];
+        if (!trialData) return 0;
+        
+        // Get the probabilities for the current phase
+        const leftProb = trialData.probabilities[0];
+        const rightProb = trialData.probabilities[1];
+        const ratio = leftProb / rightProb;
+
+        // Calculate previous phases' total height
+        let previousHeight = 0;
+        let previousX = 0;
+
+        if (trial >= 200) {
+          // Add phase 1 total
+          const phase1Ratio = gameData[0].probabilities[0] / gameData[0].probabilities[1];
+          previousHeight += phase1Ratio * 200;
+          previousX = 200;
+        }
+        
+        if (trial >= 400) {
+          // Add phase 2 total
+          const phase2Ratio = gameData[200].probabilities[0] / gameData[200].probabilities[1];
+          previousHeight += phase2Ratio * 200;
+          previousX = 400;
+        }
+
+        // Calculate current segment
+        return previousHeight + ratio * (x - previousX);
+      };
+
+      // Add starting point
       dataPoints.push({
         rightCumulative: 0,
         leftCumulative: 0,
         incomeRatio: 0
       });
 
-      gameData.forEach((trial) => {
+      // Process each trial
+      gameData.forEach((trial, index) => {
         if (trial.action === 0) {
           leftCount += 1;
         } else {
@@ -37,8 +66,7 @@ const ResultsPage = ({ gameData, username }) => {
         dataPoints.push({
           rightCumulative: rightCount,
           leftCumulative: leftCount,
-          // Use GAME_CONFIG.REWARD_PROBS here
-          incomeRatio: rightCount * (GAME_CONFIG.REWARD_PROBS[0]/GAME_CONFIG.REWARD_PROBS[1])
+          incomeRatio: calculateIncomeRatio(rightCount, index)
         });
       });
 
@@ -58,7 +86,7 @@ const ResultsPage = ({ gameData, username }) => {
 
   const fetchLeaderboard = async () => {
     try {
-      const response = await fetch('https://dft-experiment-backend.onrender.com/api/leaderboard');
+      const response = await fetch('http://localhost:5001/api/leaderboard');
       const data = await response.json();
       setLeaderboard(data);
     } catch (error) {
@@ -67,10 +95,10 @@ const ResultsPage = ({ gameData, username }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col p-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Visualization Card */}
-        <Card>
+    <div className="min-h-screen bg-gray-100 p-8">
+      <div className="max-w-6xl mx-auto space-y-8">
+        {/* Visualization Card - Now full width */}
+        <Card className="w-full">
           <CardHeader>
             <CardTitle>Choice vs Income Ratio</CardTitle>
             <div className="text-sm text-gray-600">
@@ -79,8 +107,8 @@ const ResultsPage = ({ gameData, username }) => {
           </CardHeader>
           <CardContent>
             <LineChart 
-              width={500} 
-              height={400} 
+              width={800} 
+              height={600} 
               data={visualizationData}
               margin={{ top: 20, right: 30, left: 50, bottom: 50 }}
             >
@@ -94,7 +122,7 @@ const ResultsPage = ({ gameData, username }) => {
                 }}
                 type="number"
                 domain={[0, 'dataMax + 1']}
-                ticks={Array.from({ length: GAME_CONFIG.GAME_LENGTH }, (_, i) => i)}
+                ticks={Array.from({ length: 7 }, (_, i) => i * 100)}
               />
               <YAxis 
                 label={{ 
@@ -105,7 +133,7 @@ const ResultsPage = ({ gameData, username }) => {
                 }}
                 type="number"
                 domain={[0, 'dataMax + 1']}
-                ticks={Array.from({ length: GAME_CONFIG.GAME_LENGTH}, (_, i) => i)}
+                ticks={Array.from({ length: 7 }, (_, i) => i * 100)}
               />
               <Tooltip />
               <Legend wrapperStyle={{ bottom: -10 }} />
@@ -114,7 +142,7 @@ const ResultsPage = ({ gameData, username }) => {
                 dataKey="leftCumulative" 
                 stroke="#8884d8" 
                 name="Choice Ratio"
-                dot={true}
+                dot={false}
               />
               <Line 
                 type="monotone" 
@@ -128,12 +156,12 @@ const ResultsPage = ({ gameData, username }) => {
         </Card>
 
         {/* Leaderboard Card */}
-        <Card>
+        <Card className="w-full">
           <CardHeader>
             <CardTitle>Leaderboard</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {leaderboard.map((entry, index) => (
                 <div 
                   key={index}
