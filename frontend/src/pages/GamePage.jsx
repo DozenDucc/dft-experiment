@@ -1,59 +1,81 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
-import { GAME_CONFIG } from '../config/gameConfig'; // Add this import
+import { GAME_CONFIG } from '../config/gameConfig';
 
 const GamePage = ({ username, onGameComplete }) => {
   const [states, setStates] = useState([0, 0]);
   const [isDisabled, setIsDisabled] = useState(false);
   const [gameData, setGameData] = useState([]);
   const [showReward, setShowReward] = useState(false);
+  // Store current probabilities and phase information
+  const [currentPhase, setCurrentPhase] = useState({
+    phaseNumber: 1,
+    probabilities: GAME_CONFIG.getCurrentPhaseProbs(0)
+  });
   
   const audioRef = useRef(new Audio('/ding.mp3'));
   
-  // Remove local constants and use GAME_CONFIG instead
   const COOLDOWN_TIME = GAME_CONFIG.COOLDOWN_TIME;
   const REWARD_DISPLAY_TIME = 500;
   const GAME_LENGTH = GAME_CONFIG.GAME_LENGTH;
-  // Remove REWARD_PROBS constant as we'll use GAME_CONFIG.REWARD_PROBS
 
+  // Initialize game state
   useEffect(() => {
     updateRewards();
   }, []);
 
   const random = () => Math.random();
 
+  // Update probabilities based on trial number
+  const updatePhaseIfNeeded = (trialNumber) => {
+    let newPhaseNumber;
+    if (trialNumber < 200) newPhaseNumber = 1;
+    else if (trialNumber < 400) newPhaseNumber = 2;
+    else newPhaseNumber = 3;
+
+    if (newPhaseNumber !== currentPhase.phaseNumber) {
+      const newProbs = GAME_CONFIG.getCurrentPhaseProbs(trialNumber);
+      setCurrentPhase({
+        phaseNumber: newPhaseNumber,
+        probabilities: newProbs
+      });
+      console.log(`Phase ${newPhaseNumber} started with probabilities:`, newProbs);
+    }
+  };
+
   const updateRewards = useCallback(() => {
     setStates(prevStates => {
       return prevStates.map((state, index) => {
-        // Use GAME_CONFIG.REWARD_PROBS here
-        if (state === 0 && random() < GAME_CONFIG.REWARD_PROBS[index]) {
+        if (state === 0 && random() < currentPhase.probabilities[index]) {
           return 1;
         }
         return state;
       });
     });
-  }, []);
+  }, [currentPhase.probabilities]);
 
-
-  // Handle button click
   const handleClick = async (buttonIndex) => {
     if (isDisabled || gameData.length >= GAME_LENGTH) return;
 
     setIsDisabled(true);
     const hasReward = states[buttonIndex] === 1;
     
-    // Record the action
+    // Check if we need to update phase before recording data
+    updatePhaseIfNeeded(gameData.length);
+    
+    // Record the action with current phase information
     const newGameData = [...gameData, {
       trial: gameData.length + 1,
       action: buttonIndex,
       reward: hasReward ? 1 : 0,
       states: [...states],
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      phase: currentPhase.phaseNumber,
+      probabilities: [...currentPhase.probabilities] // Store the probabilities used
     }];
     setGameData(newGameData);
 
-    // Handle reward
     if (hasReward) {
       setShowReward(true);
       audioRef.current.play();
@@ -65,13 +87,11 @@ const GamePage = ({ username, onGameComplete }) => {
       setTimeout(() => setShowReward(false), REWARD_DISPLAY_TIME);
     }
 
-    // Update rewards and handle cooldown
     updateRewards();
     setTimeout(() => {
       setIsDisabled(false);
     }, COOLDOWN_TIME);
 
-    // Check if game is complete
     if (newGameData.length >= GAME_LENGTH) {
       onGameComplete(newGameData);
     }
@@ -84,6 +104,7 @@ const GamePage = ({ username, onGameComplete }) => {
           <div className="text-center space-y-2">
             <h2 className="text-2xl font-bold">Dynamic Foraging Task</h2>
             <p>Trials completed: {gameData.length} / {GAME_LENGTH}</p>
+            <p className="text-sm text-gray-500">Phase {currentPhase.phaseNumber}</p>
           </div>
 
           <div className="flex justify-center items-center space-x-8">
